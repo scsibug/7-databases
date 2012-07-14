@@ -1,0 +1,24 @@
+Create a new cluster:
+  initdb /usr/local/var/postgres
+
+Automatically load on login:
+  mkdir -p ~/Library/LaunchAgents
+  cp /usr/local/Cellar/postgresql/9.1.4/homebrew.mxcl.postgresql.plist ~/Library/LaunchAgents/
+  launchctl load -w ~/Library/LaunchAgents/homebrew.mxcl.postgresql.plist
+
+Start manually:
+  pg_ctl -D /usr/local/var/postgres -l /usr/local/var/postgres/server.log start
+
+Stop manually:
+  pg_ctl -D /usr/local/var/postgres stop -s -m fast
+
+Security settings:
+  You can change this by editing pg_hba.conf or using the -A option the
+  next time you run initdb.
+
+Loading extensions into database:
+  CREATE EXTENSION "tablefunc";
+  CREATE EXTENSION "dict_xsyn";
+  CREATE EXTENSION "fuzzystrmatch";
+  CREATE EXTENSION "pg_trgm";
+  CREATE EXTENSION "cube";
