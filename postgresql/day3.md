@@ -1,0 +1,47 @@
+== Find ==
+1) http://www.postgresql.org/docs/9.1/static/contrib.html 
+2) http://www.wellho.net/regex/posix.html
+== Do ==
+1) Create a stored procedure, taking a movie title or actors name,
+   outputting the top 5 suggestions based on movies the actor has
+   starred in, or films with similar genres.
+
+create or replace function movie_suggest(userquery text) returns table(movie_name text) as $$
+begin
+  return query
+    select title from (
+      select m.title as title from
+        actors a natural join movies_actors
+        natural join movies m
+        where a.name ilike '%'||userquery||'%'
+      union all
+      select title from (
+        select title, 
+          cube_distance(genre, (select genre from movies where title ilike userquery limit 1)) as dist
+          from movies order by dist
+      ) as cubequery where dist is not null and dist != 0 limit 5
+    ) as uq limit 5;
+end;
+$$ language plpgsql;
+
+2) Expand movies database to track user comments, and extract keywords.
+  Cross-reference these keywords with actors' last names and find the most
+  talked about actors.
+
+-- Create a comments table, not associated with anything
+create table comments (
+  comment_id serial primary key,
+  comment text
+);
+
+-- Insert some comments
+insert into comments (comment) values
+  ('Kevin Spacey was good in American Beauty'),
+  ('I liked Taxi Driver, De Niro was great'),
+  ('I watched Bill Murray in Groundhog day yesterday'),
+  ('Jack Nicholson was a good Joker'),
+  ('Jack Nicholson was excellent in a few good men.');
+
+-- Find the last names of actors
+
+select regexp_replace(name, '.* ', '') from actors;
