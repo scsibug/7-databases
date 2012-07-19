@@ -42,6 +42,11 @@ insert into comments (comment) values
   ('Jack Nicholson was a good Joker'),
   ('Jack Nicholson was excellent in a few good men.');
 
--- Find the last names of actors
 
-select regexp_replace(name, '.* ', '') from actors;
+-- I'm sure there's a massively faster way to do this...
+select a.name, count(*) from
+  actors a left outer join comments c on true
+  where to_tsvector(c.comment) @@ plainto_tsquery('english', regexp_replace(a.name, '.* ', ''))
+    group by a.actor_id order by count desc;
+
+
