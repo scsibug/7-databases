@@ -49,7 +49,20 @@ select a.name, count(*) from
   actors a join comments c on 
     (to_tsvector(c.comment) @@ 
     plainto_tsquery('simple',regexp_replace(a.name, '.* ', '')))
-    group by a.actor_id order by count desc;
--- 593 ms
+    group by a.actor_id order by count desc limit 5;
+-- 593 ms execution time
 
+-- This is a minor improvement (but much easier to understand)
+select a.name, 
+       ts_rank( to_tsvector((select string_agg(comment,' ') from comments)),
+         plainto_tsquery('simple', regexp_replace(a.name, '.* ', ''))) as rank
+  from actors a order by rank desc limit 5;
+-- 445ms
 
+-- Significant improvement from moving the string aggregation outside the projection.
+select
+  a.name, 
+  ts_rank( c.document, plainto_tsquery('simple', regexp_replace(a.name, '.* ', ''))) as rank
+from actors a join (select to_tsvector(string_agg(comment,' ')) as document from comments) c on true
+order by rank desc limit 5;
+-- 45ms
