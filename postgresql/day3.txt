@@ -17,7 +17,8 @@ begin
       union all
       select title from (
         select title, 
-          cube_distance(genre, (select genre from movies where title ilike userquery limit 1)) as dist
+          cube_distance(genre, (select genre from movies
+            where title ilike userquery limit 1)) as dist
           from movies order by dist
       ) as cubequery where dist is not null and dist != 0 limit 5
     ) as uq limit 5;
