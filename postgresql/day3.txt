@@ -46,8 +46,10 @@ insert into comments (comment) values
 
 -- I'm sure there's a massively faster way to do this...
 select a.name, count(*) from
-  actors a left outer join comments c on true
-  where to_tsvector(c.comment) @@ plainto_tsquery('english', regexp_replace(a.name, '.* ', ''))
+  actors a join comments c on 
+    (to_tsvector(c.comment) @@ 
+    plainto_tsquery('simple',regexp_replace(a.name, '.* ', '')))
     group by a.actor_id order by count desc;
+-- 593 ms
 
 
