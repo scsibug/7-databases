@@ -1,0 +1,27 @@
+== Find ==
+ 1) Riak project documentation: http://wiki.basho.com/Riak.html
+    Riak HTTP documentation: https://wiki.basho.com/HTTP-API.html
+ 2) Browser supported MIME types for IE:
+    http://msdn.microsoft.com/en-us/library/ms775147%28v=vs.85%29.aspx
+ 3) The only differences between dev1 and other servers are the http/https
+    ports, handoff port, and pb_port.
+
+== Do ==
+ 1) Using PUT, update animals/polly to have a Link pointing to photos/polly.jpg
+curl -v -X PUT http://localhost:8091/buckets/animals/keys/polly?returnbody=true \
+  -H "Content-type: application/json" \
+  -H "Link: </buckets/photos/keys/polly.png>; riaktag=\"photo\"" \
+  -d '{"nickname" : "Sweet Polly Purebreed", "breed" : "Purebred"}'
+
+ 2) POST a file of a MIME type we haven't yet used (such as application/pdf)
+curl -X PUT http://localhost:8091/buckets/photos/keys/riak_cli.pdf \
+  -H "Content-type: applicaton/pdf" \
+  --data-binary @riak_cli.pdf
+
+3) Create a new bucket called medicines, PUT a jpeg image with proper MIME type keyed
+   with 'antibiotics', and link to the animal Ace.
+
+curl -ivX PUT http://localhost:8091/buckets/medicines/keys/antibiotics \
+  -H "Content-type: image/jpeg" \
+  -H "Link: </buckets/animals/keys/ace>; riaktag=\"prescribed\"" \
+  --data-binary @antibiotics.jpg

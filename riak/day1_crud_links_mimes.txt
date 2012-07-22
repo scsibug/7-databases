@@ -1,0 +1,114 @@
+# Using both httpie (http), and curl
+# Ping the nodes
+http http://localhost:8091/ping
+http http://localhost:8092/ping
+http http://localhost:8093/ping
+http http://localhost:8094/ping
+# with curl
+curl http://localhost:8094/ping
+
+# An invalid query (404)
+http HEAD http://localhost:8091/buckets/no_bucket/no_key
+HTTP/1.1 404 Object Not Found
+# with curl
+curl -I http://localhost:8091/buckets/no_bucket/no_key
+
+# PUT some json data
+http put http://localhost:8091/buckets/favs/keys/db fav_db=riak
+# with Curl, html
+curl -X PUT http://localhost:8091/buckets/favs/keys/db -H "Content-type: text/html" -d "<html><body><h1>Riak is my fav.</h1></body></html>"
+
+# Retrieve the data
+[~]$ http get http://localhost:8091/buckets/favs/keys/db
+HTTP/1.1 200 OK
+X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTIlMfK4Cxec5IvCwA=
+Vary: Accept-Encoding
+Server: MochiWeb/1.1 WebMachine/1.9.0 (someone had painted it blue)
+Link: </buckets/favs>; rel="up"
+Last-Modified: Thu, 19 Jul 2012 05:29:39 GMT
+ETag: "47wr31b7fV3Xh4xtfEFV6"
+Date: Thu, 19 Jul 2012 05:30:11 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 18
+
+{
+    "fav_db": "riak"
+}
+
+# populate a bucket with a key known in advance.
+curl -v -X PUT http://localhost:8091/buckets/animals/keys/ace \
+  -H "Content-type: application/json" \
+  -d '{"nickname" : "The Wonder Dog", "breed" : "German Shepherd"}'
+
+# get a list of all buckets
+curl -X GET http://localhost:8091/buckets\?buckets\=true
+
+# Put another value, but return the results
+curl -v -X PUT http://localhost:8091/buckets/animals/keys/polly?returnbody=true \
+  -H "Content-type: application/json" \
+  -d '{"nickname" : "Sweet Polly Purebreed", "breed" : "Purebred"}'
+
+# Do the same, but with an auto-generated key
+curl -v -X POST http://localhost:8091/buckets/animals/keys?returnbody=true \
+  -H "Content-type: application/json" \
+  -d '{"nickname" : "Sergeant Stubby", "breed" : "Terrier"}'
+
+# Result is a new object at a Riak-defined location:
+HTTP/1.1 201 Created
+X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTImMfK0Lq0/iRfFgA=
+Vary: Accept-Encoding
+Server: MochiWeb/1.1 WebMachine/1.9.0 (someone had painted it blue)
+Location: /riak/animals/TlpuZedPcKyhx6UP0TVUtJZ68Oa
+
+# Retrieve newly-created key
+curl http://localhost:8091/riak/animals/TlpuZedPcKyhx6UP0TVUtJZ68Oa
+
+# Then, delete the key
+curl -X DELETE http://localhost:8091/riak/animals/TlpuZedPcKyhx6UP0TVUtJZ68Oa
+
+# Create a container with a link to another key
+curl -X PUT http://localhost:8091/buckets/cages/keys/1 \
+  -H "Content-type: application/json" \
+  -H "Link: </buckets/animals/keys/polly>; riaktag=\"contains\"" \
+  -d '{"room": 101}'
+
+# Verify that the polly key hasn't changed
+curl -I http://localhost:8091/buckets/animals/keys/polly
+
+# Create another cage, referencing the first one
+curl -X PUT http://localhost:8091/buckets/cages/keys/2 \
+  -H "Content-type: application/json" \
+  -H "Link: </buckets/animals/keys/ace>; riaktag=\"contains\",</buckets/cages/keys/1>; riaktag=\"next_to\"" \
+  -d '{"room": 101}'
+
+# Use link-walking to get keys related to cage 1
+curl http://localhost:8091/buckets/cages/keys/1/_,_,_
+
+# Restrict to only showing links to the animals bucket
+
+curl http://localhost:8091/buckets/cages/keys/1/animals,_,_
+
+# Only follow relationships using the "next_to" tag
+
+curl http://localhost:8091/buckets/cages/keys/2/_,next_to,_
+
+# Follow the next_to tag, and then show all entries in the animals bucket.
+# Don't include the intermediate information
+curl http://localhost:8091/buckets/cages/keys/2/_,next_to,0/animals,_,_
+# Returns the /buckets/animals/keys/polly key
+
+# polly and cage 1
+curl http://localhost:8091/buckets/cages/keys/2/_,next_to,1/_,_,_
+
+# Store some other metadata (color
+curl -X PUT http://localhost:8091/buckets/cages/keys/1 \
+  -H "Content-type: application/json" \
+  -H "X-Riak-Meta-Color: Pink" \
+  -H "Link: </buckets/animals/keys/polly>; riaktag=\"contains\"" \
+  -d '{"room": 101}'
+
+# Store an image
+curl -X PUT http://localhost:8091/buckets/photos/keys/polly.png \
+  -H "Content-type: image/png" \
+  -H "Link: </buckets/animals/keys/polly>; riaktag=\"photo\"" \
+  --data-binary @polly.png
