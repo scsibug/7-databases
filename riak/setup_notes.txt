@@ -1,0 +1,27 @@
+curl -O http://downloads.basho.com/riak/CURRENT/riak-1.1.4.tar.gz
+tar zxvf riak-1.1.4.tar.gz
+cd riak-1.1.4
+make all
+
+make devrel
+
+cd dev
+
+ulimit -n 2048 # increase open file limit
+
+dev1/bin/riak start
+dev2/bin/riak start
+dev3/bin/riak start
+dev4/bin/riak start
+
+# Join nodes to dev1
+dev2/bin/riak-admin join dev1@127.0.0.1
+dev3/bin/riak-admin join dev1@127.0.0.1
+dev4/bin/riak-admin join dev1@127.0.0.1
+
+# Verify it is all up (using httpie)
+http http://localhost:8091/stats
+# with curl
+curl -I http://localhost:8091/stats
+
+

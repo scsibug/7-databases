@@ -1,0 +1,230 @@
+gem install riak-client json
+
+# Run a sample map job with a subset of our data
+curl -X POST -H "content-type:application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs":[
+    ["rooms","101"], ["rooms","102"], ["rooms","103"]
+  ],
+  "query":[
+    {"map":{
+      "language":"javascript",
+      "source":
+        "function(v) {
+           /* From the Riak object, pull data and parse it as JSON */
+           var parsed_data = JSON.parse(v.values[0].data);
+           var data = {};
+           /* Key capacity number by room style string */
+           data[parsed_data.style] = parsed_data.capacity;
+           return [data];
+        }"
+    }}
+  ]
+}
+# Result:
+[{"queen":8},{"single":7},{"queen":2}]
+
+# Do the same, but over all rooms data
+curl -X POST -H "content-type:application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs":"rooms",
+  "query":[
+    {"map":{
+      "language":"javascript",
+      "source":
+        "function(v) {
+           /* From the Riak object, pull data and parse it as JSON */
+           var parsed_data = JSON.parse(v.values[0].data);
+           var data = {};
+           /* Key capacity number by room style string */
+           data[parsed_data.style] = parsed_data.capacity;
+           return [data];
+        }"
+    }}
+  ]
+}
+# With no reduce stage, this dumps all of the data:
+[{"queen":1},{"single":1},{"queen":7},{"double":3},{"single":2},{"single":2},{"suite":8},....
+
+# Stored procedures, saving mapreduce jobs on the Riak cluster
+curl -X PUT -H "content-type: application/json" \
+  http://localhost:8091/buckets/fun/keys/map_capacity --data @map_capacity.js
+
+# Now, run the same query, but using the stored function
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": "rooms",
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "bucket": "fun",
+      "key": "map_capacity"
+    }}
+  ]
+}
+
+# Use Riak built-in function to convert all data into json
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": "rooms",
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "name": "Riak.mapValuesJson"
+    }}
+  ]
+}
+
+# Adding a reducer step
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": "rooms",
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "bucket": "fun",
+      "key": "map_capacity"
+    }},
+    {"reduce":{
+      "language":"javascript",
+      "source":
+        "function (v) {
+           var totals = {};
+           for (var i in v) {
+             for (var style in v[i]) {
+               if (totals[style]) totals[style] += v[i][style];
+               else               totals[style] = v[i][style];
+             }
+           }
+         return [totals];
+         }"
+    }}
+  ]
+}
+
+# Returns counts per room
+[{"single":8793,"king":8857,"queen":9077,"double":9097,"suite":8963}]
+
+# Save the reduce step as well
+curl -X PUT -H "content-type: application/json" \
+  http://localhost:8091/buckets/fun/keys/reduce_room_count --data @reduce_room_count.js
+
+# Run with map and reduce cluster-side functions:
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": "rooms",
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "bucket": "fun",
+      "key": "map_capacity"
+    }},
+    {"reduce":{
+      "language":"javascript",
+      "bucket": "fun",
+      "key": "reduce_room_count"
+     }}
+  ]
+}
+
+# Filter before map step, only include rooms with a number < 1000
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": {
+    "bucket": "rooms",
+    "key_filters":[["string_to_int"], ["less_than", 1000]]
+  },
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "bucket": "fun",
+      "key": "map_capacity"
+    }},
+    {"reduce":{
+      "language":"javascript",
+      "bucket": "fun",
+      "key": "reduce_room_count"
+     }}
+  ]
+}
+# Results:
+[{"king":806,"double":772,"suite":898,"queen":771,"single":803}]
+
+# Link walking with mapreduce
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs":{
+    "bucket":"cages",
+    "key_filters":[["eq","2"]]
+  },
+  "query":[
+    {"link":{
+      "bucket":"animals",
+      "keep":false
+  }},
+  {"map":{
+    "language":"javascript",
+    "source":
+      "function(v){return [v];}"
+    }}
+  ]
+}
+# Result:
+[
+    {
+        "bucket": "animals", 
+        "key": "ace", 
+        "values": [
+            {
+                "data": "{\"nickname\" : \"The Wonder Dog\", \"breed\" : \"German Shepherd\"}", 
+                "metadata": {
+                    "Links": [], 
+                    "X-Riak-Last-Modified": "Sat, 21 Jul 2012 22:53:52 GMT", 
+                    "X-Riak-Meta": [], 
+                    "X-Riak-VTag": "4vbxpmt3YfK4UXxgjzx7fo", 
+                    "content-type": "application/json", 
+                    "index": []
+                }
+            }
+        ], 
+        "vclock": "a85hYGBgzGDKBVIcMRuucwWwT5fNYEpkyWNlYFhff5IvCwA="
+    }
+]
+
+# Set the animals bucket to have a replication value of 4.
+curl -X PUT http://localhost:8091/riak/animals/ \
+  -H "Content-Type: application/json" \
+  -d '{"props":{"n_val":4}}'
+
+# Require 2 writes before returning
+curl -X PUT http://localhost:8091/riak/animals/ \
+  -H "Content-Type: application/json" \
+  -d '{"props":{"w":2}}'
+
+# Require 3 reads before returning
+curl -X PUT http://localhost:8091/riak/animals/ \
+  -H "Content-Type: application/json" \
+  -d '{"props":{"r":3}}'
+
+# Or, configure node read count per-request:
+curl http://localhost:8091/buckets/animals/keys/ace?r=3
+
+# Read from a quorum of nodes
+curl http://localhost:8091/buckets/animals/keys/ace?r=quorum
+
+# Shut down a node, and try to read from all nodes
+./dev3/bin/riak stop 
+curl http://localhost:8091/buckets/animals/keys/ace?r=all
+
+# Configure a bucket to have one durable write before returning
+curl -X PUT http://localhost:8091/riak/animals/ \
+  -H "Content-Type: application/json" \
+  -d '{"props":{"dw":"one"}}'

@@ -1,0 +1,92 @@
+== Find ==
+ 1) http://wiki.basho.com/MapReduce.html
+ 2) http://contrib.basho.com/map-reduce-functions.html
+ 3) http://wiki.basho.com/Key-Filters.html
+
+== Do ==
+ 1) Write map/reduce functions against the rooms bucket to find the total guest
+    capacity per floor.
+
+Strategy: Map over all rooms to return their floor/capacity.
+          Reduce over results to return the sum by floor.
+
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": "rooms",
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "source":
+        "function(v) {
+           /* From the Riak object, pull data and parse it as JSON */
+           var parsed_data = JSON.parse(v.values[0].data);
+           var data = {};
+           var floor = v.key.slice(0,-2);
+           /* Key capacity number by room style string */
+           data[floor] = parsed_data.capacity;
+           return [data];
+        }"
+    }},
+    {"reduce":{
+      "language":"javascript",
+      "source":
+        "function (v) {
+           var totals = {};
+           for (var i in v) {
+             for (var floor in v[i]) {
+               if (totals[floor]) totals[floor] += v[i][floor];
+               else               totals[floor] = v[i][floor];
+             }
+           }
+         return [totals];
+         }"
+    }}
+  ]
+}
+
+# Result:
+[{"97":441,"67":438,"53":458,"24":496,"36":444,"65":418,"48":459,"30":418,"34":438,"4":422,"2":457,"3":437,"18":494,"91":443,"69":463,"5":455,"56":436,"76":424,"96":441,"29":446,"98":429,"40":454,"72":417,"71":434,"66":489,"86":416,"49":464,"25":424,"79":438,"77":421,"6":430,"90":434,"51":427,"95":440,"63":440,"32":430,"20":471,"7":434,"47":430,"10":420,"85":440,"14":458,"11":426,"27":488,"82":453,"88":440,"33":506,"61":402,"83":444,"62":492,"87":430,"52":455,"9":499,"74":419,"93":460,"31":476,"94":451,"38":475,"99":416,"28":450,"22":504,"17":414,"1":448,"41":468,"60":486,"19":461,"54":451,"59":474,"78":440,"58":451,"26":435,"12":476,"15":468,"81":436,"39":418,"73":396,"75":473,"42":460,"16":454,"46":492,"43":418,"64":453,"44":469,"84":419,"37":435,"23":466,"80":458,"57":460,"100":447,"13":432,"70":466,"89":422,"8":468,"50":454,"68":438,"55":448,"45":427,"35":455,"92":435,"21":457,"101":5}]
+
+# Use a filter to show floors 42 and 43
+
+curl -X POST -H "content-type: application/json" \
+  http://localhost:8091/mapred --data @-
+{
+  "inputs": {
+    "bucket": "rooms",
+    "key_filters":[["string_to_int"], ["between", 4200, 4399, true]]
+  },
+  "query": [
+    {"map": {
+      "language": "javascript",
+      "source":
+        "function(v) {
+           /* From the Riak object, pull data and parse it as JSON */
+           var parsed_data = JSON.parse(v.values[0].data);
+           var data = {};
+           var floor = v.key.slice(0,-2);
+           /* Key capacity number by room style string */
+           data[floor] = parsed_data.capacity;
+           return [data];
+        }"
+    }},
+    {"reduce":{
+      "language":"javascript",
+      "source":
+        "function (v) {
+           var totals = {};
+           for (var i in v) {
+             for (var floor in v[i]) {
+               if (totals[floor]) totals[floor] += v[i][floor];
+               else               totals[floor] = v[i][floor];
+             }
+           }
+         return [totals];
+         }"
+    }}
+  ]
+}
+
+# Returns
+[{"43":418,"42":460}]
