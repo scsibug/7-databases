@@ -1,0 +1,113 @@
+# Set bucket properties to allow multiple versions
+curl -X PUT http://localhost:8091/riak/animals \
+  -H "Content-Type: application/json" \
+  -d '{"props":{"allow_mult":true}}'
+
+# Add an animal with a score, set by client Bob
+curl -X PUT http://localhost:8091/buckets/animals/keys/bruiser \
+  -H "X-Riak-ClientId: bob" \
+  -H "Content-Type: application/json" \
+  -d '{"score": 3}'
+
+# Retrieve bruiser
+curl -i http://localhost:8091/buckets/animals/keys/bruiser?return_body=true
+
+# Jane updates the score, including the vector clock from Bob to indicate her
+# change is a modification of Bob's.
+curl -X PUT http://localhost:8091/buckets/animals/keys/bruiser \
+  -H "X-Riak-ClientId: jane" \
+  -H "X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTImMfKUD2l6SRfFgA=" \
+  -H "Content-Type: application/json" \
+  -d '{"score": 2}'
+
+# But now Rakshith puts his score, without checking for modifications
+# since Bob submitted his.
+curl -X PUT http://localhost:8091/buckets/animals/keys/bruiser \
+  -H "X-Riak-ClientId: rakshith" \
+  -H "X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTImMfKUD2l6SRfFgA=" \
+  -H "Content-Type: application/json" \
+  -d '{"score": 4}'
+
+# Now, when jane re-checks the score, she sees the conflict.
+
+HTTP/1.1 300 Multiple Choices
+Content-Type: text/plain
+Siblings:
+16wc0OfFQCoJsxGJpl0YeX
+6IMqXPar9zCfg4Q2oktnaP
+
+# She can get more info by accepting a multipart MIME type:
+curl -i http://localhost:8091/buckets/animals/keys/bruiser?return_body=true \
+  -H "Accept: multipart/mixed"
+
+HTTP/1.1 300 Multiple Choices
+X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTInMfKUCzfd5IvCwA=
+Vary: Accept, Accept-Encoding
+Server: MochiWeb/1.1 WebMachine/1.9.0 (someone had painted it blue)
+Date: Wed, 01 Aug 2012 21:47:29 GMT
+Content-Type: multipart/mixed; boundary=39CGiAmkYjflpXm2xUwXNd2SNQp
+Content-Length: 417
+
+
+--39CGiAmkYjflpXm2xUwXNd2SNQp
+Content-Type: application/json
+Link: </buckets/animals>; rel="up"
+Etag: 16wc0OfFQCoJsxGJpl0YeX
+Last-Modified: Wed, 01 Aug 2012 21:45:23 GMT
+
+{"score": 4}
+--39CGiAmkYjflpXm2xUwXNd2SNQp
+Content-Type: application/json
+Link: </buckets/animals>; rel="up"
+Etag: 6IMqXPar9zCfg4Q2oktnaP
+Last-Modified: Wed, 01 Aug 2012 21:43:47 GMT
+
+{"score": 2}
+--39CGiAmkYjflpXm2xUwXNd2SNQp--
+
+
+# Jane decides to resolve the conflict by averaging the scores to three.
+curl -X PUT http://localhost:8091/buckets/animals/keys/bruiser \
+  -H "X-Riak-ClientId: jane" \
+  -H "X-Riak-Vclock: a85hYGBgzGDKBVIcR4M2cgewTzuQwZTInMfKUCzfd5IvCwA=" \
+  -H "Content-Type: application/json" \
+  -d '{"score": 3}'
+
+# Now, GETs will return 3, and there is no multipart content.
+
+# After loading my_validator.js into the shared js_source directory,
+# we can configure a bucket to use a function as a validator.
+curl -X PUT http://localhost:8091/riak/animals \
+ -H "content-type:application/json" \
+ -d '{"props":{"precommit":[{"name" : "good_score", "language": "javascript"}]}}'
+
+# Now, using invalid scores should fail
+curl -X PUT http://localhost:8091/buckets/animals/keys/bruiser \
+  -H "Content-Type: application/json" \
+  -d '{"score": 5}'
+
+PUT aborted by pre-commit hook.
+# This didn't show the error message...why?
+# Book errors:
+# Must specify language.
+# Cannot use tilde in specifying js_source_dir!
+
+
+#Search
+# search enabled in app.config, now we need the precommit hook
+./dev1/bin/search-cmd install animals
+
+# Upload some animals for searching
+curl -X PUT http://localhost:8091/buckets/animals/keys/dragon \
+  -H "Content-Type: application/json" \
+  -d '{"nickname": "Dragon", "breed" : "Briard", "score": 1}'
+
+curl -X PUT http://localhost:8091/buckets/animals/keys/ace \
+  -H "Content-Type: application/json" \
+  -d '{"nickname": "The Wonder Dog", "breed" : "German Shephard", "score": 3}'
+
+curl -X PUT http://localhost:8091/buckets/animals/keys/rtt \
+  -H "Content-Type: application/json" \
+  -d '{"nickname": "Rin Tin Tin", "breed" : "German Shephard", "score": 4}'
+
+
