@@ -1,0 +1,22 @@
+# Create a table
+create 'wiki', 'text'
+
+# Add some data
+put 'wiki', 'Home', 'text:', 'Welcome to the wiki!'
+
+# Retrieve the data with a table name, row key, and column to return
+get 'wiki', 'Home', 'text:'
+
+# Make some schema changes
+disable 'wiki'
+# Keep all versions of the text column family
+alter 'wiki', { NAME => 'text', VERSIONS => org.apache.hadoop.hbase.HConstants::ALL_VERSIONS }
+# Add a revision column family to the wiki table
+alter 'wiki', { NAME => 'revision', VERSIONS => org.apache.hadoop.hbase.HConstants::ALL_VERSIONS }
+
+# re-enable the wiki table
+enable 'wiki'
+
+# Run a jruby program to insert some data using the shell
+$HBASE_HOME/bin/hbase shell put_multiple_columns.rb
+

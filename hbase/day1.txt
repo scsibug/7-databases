@@ -1,0 +1,45 @@
+== Find ==
+ 1) Figure out how to use the shell to do the following
+   * Delete individual column values in a row
+   * Delete an entire row
+
+# Create some data
+put 'wiki', 'Test', 'text:', 'This is a test'
+put 'wiki', 'Test', 'revision:author', 'Greg'
+
+# Delete a value
+delete 'wiki', 'Test', 'revision:author'
+# Delete the row
+deleteall 'wiki', 'Test'
+
+ 2) Bookmark the HBase API documentation for the version of HBase you're using.
+  * http://hbase.apache.org/apidocs/index.html (cannot find 0.94.0 docs!)
+
+== Do ==
+
+ 1) Create a function called put_many() that creates a Put instance,
+ adds any number of column-value pairs to it, and commits it to the
+ table.
+
+import 'org.apache.hadoop.hbase.client.HTable'
+import 'org.apache.hadoop.hbase.client.Put'
+def put_many( table_name, row, column_values )
+  table = HTable.new(@hbase.configuration, table_name)
+  p = Put.new(row.to_s.to_java_bytes)
+  column_values.each do |k,v|
+    colfamily = k.split(':')
+    p.add(colfamily.first.to_s.to_java_bytes, colfamily.last.to_s.to_java_bytes, v.to_s.to_java_bytes)
+    print("added #{k} -> #{v}\n")
+  end
+  table.put(p)
+end
+
+ 2) Execute the put_many function on the following data:
+put_many 'wiki', 'Some title', {"text:" => "Some article text", "revision:author"=>"jschmoe","revision:comment"=>"no comment" }
+
+hbase(main):057:0> get 'wiki', 'Some title'
+COLUMN                                   CELL
+ revision:author                         timestamp=1344126694815, value=jschmoe
+ revision:comment                        timestamp=1344126694815, value=no comment
+ text:text                               timestamp=1344126694815, value=Some article text
+3 row(s) in 0.0960 seconds
