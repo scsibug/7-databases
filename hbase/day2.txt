@@ -1,0 +1,62 @@
+== Find ==
+ 1. http://wiki.apache.org/hadoop/UsingLzoCompression
+ 2. http://www.quora.com/How-are-bloom-filters-used-in-HBase
+    http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html
+ 3./4. block compression: spans across multiple rows (better compression)
+       record compression: localized to the row (faster access times)
+
+== Do ==
+Data retrieved from:
+http://explore.data.gov/Heath-and-Nutrition/MyPyramid-Food-Raw-Data/b978-7txq
+
+ 1. Create a new table called foods with a single column family to store the facts.
+
+create 'foods', 'facts'
+
+# "food code" will be the row key.
+
+ 2. Create a new JRuby script for importing the food data.
+see "food_import.rb"
+
+ 3.
+
+after running with:
+ $HBASE_HOME/bin/hbase shell food_import.rb  < Food_Display_Table.xml
+
+ 4.
+
+Look up a row with a filter:
+scan 'foods', {FILTER => "SingleColumnValueFilter ('facts', 'Display_Name', =, 'binary:Water')"}
+
+Display all food names:
+scan 'foods', {COLUMNS => 'facts:Display_Name'}
+
+example output for one row:
+hbase(main):003:0> get 'foods', 94210100
+COLUMN                                 CELL
+ facts:Added_Sugars                    timestamp=1344462574286, value=35.10000
+ facts:Alcohol                         timestamp=1344462574286, value=.00000
+ facts:Calories                        timestamp=1344462574286, value=35.10000
+ facts:Display_Name                    timestamp=1344462574286, value=Fitness Water (Propel)
+ facts:Drkgreen_Vegetables             timestamp=1344462574286, value=.00000
+ facts:Drybeans_Peas                   timestamp=1344462574286, value=.00000
+ facts:Factor                          timestamp=1344462574286, value=1.00000
+ facts:Fruits                          timestamp=1344462574286, value=.00000
+ facts:Grains                          timestamp=1344462574286, value=.00000
+ facts:Increment                       timestamp=1344462574286, value=.25000
+ facts:Meats                           timestamp=1344462574286, value=.00000
+ facts:Milk                            timestamp=1344462574286, value=.00000
+ facts:Multiplier                      timestamp=1344462574286, value=.25000
+ facts:Oils                            timestamp=1344462574286, value=.00000
+ facts:Orange_Vegetables               timestamp=1344462574286, value=.00000
+ facts:Other_Vegetables                timestamp=1344462574286, value=.00000
+ facts:Portion_Amount                  timestamp=1344462574286, value=1.00000
+ facts:Portion_Default                 timestamp=1344462574286, value=2.00000
+ facts:Portion_Display_Name            timestamp=1344462574286, value=sports bottle (23.7 fl oz)
+ facts:Saturated_Fats                  timestamp=1344462574286, value=.00000
+ facts:Solid_Fats                      timestamp=1344462574286, value=.00000
+ facts:Soy                             timestamp=1344462574286, value=.00000
+ facts:Starchy_vegetables              timestamp=1344462574286, value=.00000
+ facts:Vegetables                      timestamp=1344462574286, value=.00000
+ facts:Whole_Grains                    timestamp=1344462574286, value=.00000
+25 row(s) in 0.1660 seconds

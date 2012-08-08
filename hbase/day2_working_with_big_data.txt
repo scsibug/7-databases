@@ -1,0 +1,32 @@
+# enable compression for the wiki table
+disable 'wiki'
+alter 'wiki', {NAME => 'text', COMPRESSION => 'GZ', BLOOMFILTER => 'ROW'}
+enable 'wiki'
+
+# Download some data!
+curl http://dumps.wikimedia.org/enwiktionary/latest/enwiktionary-latest-pages-articles.xml.bz2 | bzcat | $HBASE_HOME/bin/hbase shell import_from_wikipedia.rb
+
+curl http://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2 | bzcat | $HBASE_HOME/bin/hbase shell import_from_wikipedia.rb
+
+# Create a table for link data
+create 'links', {
+  NAME => 'to', VERSIONS => 1, BLOOMFILTER => 'ROWCOL'
+},{
+  NAME => 'from', VERSIONS => 1, BLOOMFILTER => 'ROWCOL'
+}
+
+# Run script to populate link table
+$HBASE_HOME/bin/hbase shell generate_wiki_links.rb
+
+(598500 pages processed)
+
+# Scan through all rows
+scan 'links'
+# View links for one article
+get 'links', 'Afternoon'
+
+# Count number of rows in the wiki table
+count 'wiki', INTERVAL => 100000, CACHE => 10000
+
+598771 row(s) in 27.5540 seconds
+
