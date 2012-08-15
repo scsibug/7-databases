@@ -1,0 +1,256 @@
+# Start a shell
+mongo book
+
+db.towns.insert({
+  name: "New York",
+  population: 22200000,
+  last_census: ISODate("2009-07-31"),
+  famous_for: ["statue of liberty", "food"],
+  mayor: {
+    name: "Micheal Bloomberg",
+    party: "I"
+  }
+})
+
+# display all collections
+show collections
+
+# show all documents in the collection we just created
+db.towns.find()
+
+# A function for adding cities
+function insertCity(
+  name, population, last_census,
+  famous_for, mayor_info
+) {
+  db.towns.insert({
+    name: name,
+    population: population,
+    last_census: ISODate(last_census),
+    famous_for: famous_for,
+    mayor: mayor_info
+  });
+}
+
+# And now use the script to add a couple of cities
+insertCity("Punxsutawney", 6200, '2008-31-01',
+  ["phil the groundhog"], {name: "Jim Wehrle"})
+
+insertCity("Portland", 582000, '2007-20-09',
+  ["beer", "food"], {name: "Same Adams", party: "D"})
+
+# Find by ID
+db.towns.find({"_id": ObjectId("5028743ba72ad0998187525c")})
+
+# Find by ID, only return name
+db.towns.find({"_id": ObjectId("5028743ba72ad0998187525c")}, {name: 1})
+# returns:
+{ "_id" : ObjectId("5028743ba72ad0998187525c"), "name" : "Portland" }
+
+# Return all but name
+db.towns.find({"_id": ObjectId("5028743ba72ad0998187525c")}, {name: 0})
+
+# Find using a regular expression
+db.towns.find(
+  {name: /^P/, population: {$lt: 10000 } },
+  {name: 1, population: 1}
+)
+# This returns:
+{ "_id" : ObjectId("50287434a72ad0998187525b"), "name" : "Punxsutawney", "population" : 6200 }
+
+
+# Find cities with populations between 10,000 and 1,000,000
+var population_range = {}
+population_range['$lt'] = 1000000
+population_range['$gt'] = 10000
+db.towns.find(
+  {name: /^P/, population: population_range},
+  {name: 1}
+)
+# This returns:
+{ "_id" : ObjectId("5028743ba72ad0998187525c"), "name" : "Portland" }
+
+# Some more searching examples...
+
+db.towns.find(
+  {famous_for:'food'},
+  {_id: 0, name:1, famous_for:1}
+)
+# Returns:
+{ "name" : "New York", "famous_for" : [ "statue of liberty", "food" ] }
+{ "name" : "Portland", "famous_for" : [ "beer", "food" ] }
+
+db.towns.find(
+  {famous_for:/statue/},
+  {_id: 0, name:1, famous_for:1}
+)
+# Returns:
+{ "name" : "New York", "famous_for" : [ "statue of liberty", "food" ] }
+
+db.towns.find(
+  {famous_for: {$all: ['food', 'beer']}},
+  {_id: 0, name:1, famous_for:1}
+)
+# Returns:
+{ "name" : "Portland", "famous_for" : [ "beer", "food" ] }
+
+db.towns.find(
+  {famous_for: {$nin: ['food', 'beer']}},
+  {_id: 0, name:1, famous_for:1}
+)
+# Returns:
+{ "name" : "Punxsutawney", "famous_for" : [ "phil the groundhog" ] }
+
+db.towns.find(
+  {'mayor.party': 'I'},
+  {_id: 0, name:1, mayor:1}
+)
+# Returns:
+{ "name" : "New York", "mayor" : { "name" : "Micheal Bloomberg", "party" : "I" } }
+
+db.towns.find(
+  {'mayor.party': {$exists: false}},
+  {_id: 0, name:1, mayor:1}
+)
+# Returns:
+{ "name" : "Punxsutawney", "mayor" : { "name" : "Jim Wehrle" } }
+
+# Create a collection to store countries.
+
+db.countries.insert({
+  _id: "us",
+  name: "United States",
+  exports: {
+    foods : [
+      { name: "bacon", tasty: true},
+      { name: "burgers"}
+    ]
+  }
+})
+
+db.countries.insert({
+  _id: "ca",
+  name: "Canada",
+  exports: {
+    foods : [
+      { name: "bacon", tasty: false},
+      { name: "syrup", tasty: true}
+    ]
+  }
+})
+
+db.countries.insert({
+  _id: "mx",
+  name: "Mexico",
+  exports: {
+    foods : [
+      { name: "salsa", tasty: true, condiment: true}
+    ]
+  }
+})
+
+# Verify all three countries were added:
+print(db.countries.count())
+# returns "3"
+
+# Countries that export bacon or tasty food.
+db.countries.find(
+  {'exports.foods.name': 'bacon',
+   'exports.foods.tasty': true },
+  { _id : 0, name : 1 }
+)
+
+# Returns:
+{ "name" : "United States" }
+{ "name" : "Canada" }
+
+# Countries that export tasty bacon
+db.countries.find(
+  {
+    'exports.foods': {
+      $elemMatch: {
+        name: "bacon",
+        tasty: true
+      }
+    }
+  },
+  {_id: 0, name: 1}
+)
+
+# Returns:
+{ "name" : "United States" }
+
+# Find a country with name 'United States' and _id of 'mx'.
+db.countries.find(
+  { _id: "mx", name: "United States"},
+  { _id: 1}
+)
+# None returned
+
+db.countries.find(
+  {
+    $or: [{ _id: "mx" }, {name: "United States"}]
+  },
+  {_id:1}
+)
+# returns
+{ "_id" : "us" }
+{ "_id" : "mx" }
+
+# Use the update function to set the state for portland
+db.towns.update(
+  { _id: ObjectId("5028743ba72ad0998187525c") },
+  { $set: {"state": "OR"} }
+)
+# Verify the change worked
+db.towns.findOne({_id: ObjectId("5028743ba72ad0998187525c")})
+
+# Increment Portland's population by 1000
+db.towns.update(
+  { _id: ObjectId("5028743ba72ad0998187525c") },
+  { $inc: {population: 1000} }
+)
+
+# References
+db.towns.update(
+  {_id: ObjectId("5028743ba72ad0998187525c") },
+  {$set: {country: {$ref: "countries", $id:"us" } } }
+)
+
+# Save a document reference
+var portland = db.towns.findOne({_id: ObjectId("5028743ba72ad0998187525c")})
+# Lookup a country using the reference
+db.countries.findOne({_id: portland.country.$id})
+# Lookup a country starting from the city
+db[ portland.country.$ref ].findOne({ _id: portland.country.$id })
+
+# Remove all countries that export non-tasty bacon
+var bad_bacon = {
+  'exports.foods' : {
+    $elemMatch : {
+      name: 'bacon',
+      tasty: false
+    }
+  }
+}
+
+# Verify our search criteria returns what we expect:
+db.countries.find( bad_bacon )
+
+# Perform the removal
+db.countries.remove(bad_bacon)
+db.countries.count()
+# Only two countries left
+
+# A custom function to find cities with populations in a given range
+db.towns.find( function() {
+  return this.population > 6000 && this.population < 600000;
+})
+# A shortcut
+db.towns.find("this.population > 6000 && this.population < 600000")
+
+# Query for towns in a population range with an additional filter
+db.towns.find({
+  $where: "this.population > 6000 && this.population < 600000",
+  famous_for: /groundhog/
+})

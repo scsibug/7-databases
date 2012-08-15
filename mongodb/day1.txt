@@ -1,0 +1,34 @@
+== Find ==
+ * MongoDB Docs: http://www.mongodb.org/display/DOCS/Home
+ * Regular Exprs: http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-RegularExpressions
+ * http://hackage.haskell.org/package/mongoDB
+
+== Do ==
+ * Print a JSON document containing {"hello": "world"}
+db.test.insert({"hello": "world"})
+db.test.find({"_id": ObjectId("502c088f8b1815ddc16c14e5")}, {hello: 1, _id: 0})
+# Returns:
+{ "hello" : "world" }
+
+ * Select a town via a case-insensitive regexp containing the word new.
+db.towns.find({ name: /new/i}, {name: 1,_id:0})
+
+ * Find all the towns whose names contain an e and are famous for food or beer.
+db.towns.find({ name: /e/i, famous_for: {$in: ['food', 'beer']}}, {name: 1,_id:0})
+
+ * Create a new database named blogger with a collection named articles.
+   Insert a new article with an author name and email, creation date, and text.
+db.articles.insert( {author: "Greg",
+                     email: "scsibug@imap.cc",
+                     creation_date: ISODate("2012-08-15"),
+                     text: "My first mongodb blog post"})
+
+ * Update the article with an array of comments.  A comment has an author and text.
+db.articles.update( {_id: ObjectId("502c0e028b1815ddc16c14e6")},
+                    { $set: {"comments": [
+                    {author: "Bob", text: "spam"},{author: "Angie", text: "more spam"}
+                    ]}})
+
+ * Run a query from an external javascript file
+ Put following into test.js and run "mongo book test.js"
+db.towns.find().forEach(printjson);
