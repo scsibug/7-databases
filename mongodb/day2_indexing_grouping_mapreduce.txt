@@ -1,0 +1,50 @@
+load("populate_phones.js")
+populatePhones( 800, 5550000, 5650000 )
+
+# Verify data was loaded
+db.phones.find().limit(2)
+# Returns:
+{ "_id" : 38005550000, "components" : { "country" : 3, "area" : 800, "prefix" : 555, "number" : 5550000 }, "display" : "+3 800-5550000" }
+{ "_id" : 48005550001, "components" : { "country" : 4, "area" : 800, "prefix" : 555, "number" : 5550001 }, "display" : "+4 800-5550001" }
+
+# Show indexes
+db.system.indexes.find()
+# Results:
+{ "v" : 1, "key" : { "_id" : 1 }, "ns" : "book.towns", "name" : "_id_" }
+{ "v" : 1, "key" : { "_id" : 1 }, "ns" : "book.countries", "name" : "_id_" }
+{ "v" : 1, "key" : { "_id" : 1 }, "ns" : "book.test", "name" : "_id_" }
+{ "v" : 1, "key" : { "_id" : 1 }, "ns" : "book.articles", "name" : "_id_" }
+{ "v" : 1, "key" : { "_id" : 1 }, "ns" : "book.phones", "name" : "_id_" }
+
+# Check query speed without the index
+db.phones.find({display: "+1 800-5650001"}).explain()
+# Results
+{
+	"cursor" : "BasicCursor",
+	"nscanned" : 100000,
+	"nscannedObjects" : 100000,
+	"n" : 0,
+	"millis" : 99,
+	"nYields" : 0,
+	"nChunkSkips" : 0,
+	"isMultiKey" : false,
+	"indexOnly" : false,
+	"indexBounds" : {
+		
+	}
+}
+
+# Now, we add the B-tree index on 'display'.
+db.phones.ensureIndex( { display : 1 }, { unique : true, dropDups : true })
+# Calling explain again now shows 0ms for the query
+
+
+# MapReduce
+
+load('distinct_digits.js')
+load('map_1.js')
+load('reduce_1.js')
+
+db.runCommand({mapReduce: 'phones', map: map, reduce: reduce, out: 'phones.report'})
+# Ran in 12 seconds, producing 3478 results
+

@@ -1,0 +1,12 @@
+== Find ==
+
+== Do ==
+
+1. implement a finalize method to output the count as the total
+(This is a very silly and badly worded exercise I think!)
+
+load('distinct_digits.js')
+load('map_1.js')
+load('reduce_1.js')
+load('finalize.js')
+db.runCommand({mapReduce: 'phones', map: map, reduce: reduce, finalize: finalize, out: {inline:1}})
