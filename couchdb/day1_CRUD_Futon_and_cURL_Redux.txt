@@ -1,0 +1,67 @@
+curl http://localhost:5984/
+{"couchdb":"Welcome","version":"1.2.0"}
+
+curl http://localhost:5984/music
+{
+    "committed_update_seq": 3,
+    "compact_running": false,
+    "data_size": 473,
+    "db_name": "music",
+    "disk_format_version": 6,
+    "disk_size": 12383,
+    "doc_count": 1,
+    "doc_del_count": 0,
+    "instance_start_time": "1346011794915867",
+    "purge_seq": 0,
+    "update_seq": 3
+}
+
+curl http://localhost:5984/music/3b2af707b0b3264235cd51d5aa000aae
+{
+    "_id": "3b2af707b0b3264235cd51d5aa000aae",
+    "_rev": "3-d919432240ae1f654f058a0be5fc2efe",
+    "albums": [
+        {
+            "title": "Help!",
+            "year": 1965
+        },
+        {
+            "title": "Sgt. Pepper's Lonely Hearts Club Band",
+            "year": 1967
+        },
+        {
+            "title": "Abbey Road",
+            "year": 1969
+        }
+    ],
+    "name": "The Beatles"
+}
+
+# Creating a document
+curl -i -X POST "http://localhost:5984/music/" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Wings"}'
+# Returns:
+{"ok":true,"id":"3b2af707b0b3264235cd51d5aa000fe2","rev":"1-2fe1dd1911153eb9df8460747dfe75a0"}
+
+# Updating a document
+curl -i -X PUT "http://localhost:5984/music/3b2af707b0b3264235cd51d5aa000fe2" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "_id": "3b2af707b0b3264235cd51d5aa000fe2", 
+    "_rev": "1-2fe1dd1911153eb9df8460747dfe75a0", 
+    "name": "Wings",
+    "albums": ["Wild Life", "Band on the Run", "London Town"]
+}'
+# Returns
+{"ok":true,"id":"3b2af707b0b3264235cd51d5aa000fe2","rev":"2-17e4ce41cd33d6a38f04a8452d5a860b"}
+
+# Running that same command again gives a 409 error due to the conflicting revision.
+{"error":"conflict","reason":"Document update conflict."}
+
+# Deleting a document
+curl -i -X DELETE "http://localhost:5984/music/3b2af707b0b3264235cd51d5aa000fe2" \
+  -H "If-Match: 2-17e4ce41cd33d6a38f04a8452d5a860b"
+# Returns
+{"ok":true,"id":"3b2af707b0b3264235cd51d5aa000fe2","rev":"3-42aafb7411c092614ce7c9f4ab79dc8b"}
+#

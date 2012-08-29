@@ -1,0 +1,21 @@
+If this is your first install, automatically load on login with:
+    mkdir -p ~/Library/LaunchAgents
+    cp /usr/local/Cellar/couchdb/1.2.0/Library/LaunchDaemons/org.apache.couchdb.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/org.apache.couchdb.plist
+
+If this is an upgrade and you already have the org.apache.couchdb.plist loaded:
+    launchctl unload -w ~/Library/LaunchAgents/org.apache.couchdb.plist
+    cp /usr/local/Cellar/couchdb/1.2.0/Library/LaunchDaemons/org.apache.couchdb.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/org.apache.couchdb.plist
+
+Alternatively, automatically run on startup as a daemon with:
+    sudo launchctl list org.apache.couchdb >/dev/null 2>&1 && \
+      sudo launchctl unload -w /Library/LaunchDaemons/org.apache.couchdb.plist
+    sudo cp /usr/local/Cellar/couchdb/1.2.0/Library/LaunchDaemons/org.apache.couchdb.plist /Library/LaunchDaemons/
+    sudo launchctl load -w /Library/LaunchDaemons/org.apache.couchdb.plist
+
+Or start manually as the current user with:
+    couchdb
+
+Web interface available at:
+http://localhost:5984/_utils/

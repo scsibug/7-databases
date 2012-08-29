@@ -1,0 +1,21 @@
+== Find ==
+ * http://wiki.apache.org/couchdb/HTTP_Document_API
+ * Other supported HTTP methods?
+  - HEAD, COPY, MOVE
+
+== Do ==
+
+ * PUT a new document into the database with a specific _id of your choice.
+curl -i -X PUT "http://localhost:5984/music/belle_and_sebastian" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "_id": "belle_and_sebastian", 
+    "name": "Belle and Sebastian",
+    "albums": ["Tigermilk", "Storytelling", "The Life Pursuit"]
+}'
+
+ * Create and delete a database using cURL.
+curl -X PUT http://127.0.0.1:5984/a_new_db
+curl -X DELETE http://127.0.0.1:5984/a_new_db
+
+ * Create a new document with cURL that has an attached text document.  Make a cURL query that returns just the document's attachment.
