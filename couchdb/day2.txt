@@ -1,0 +1,15 @@
+== Find ==
+== Do ==
+ * Create a mapper function that emits the random number for each artist as the key, and the band's name as the value.
+
+function(doc) {
+  emit(doc.random,doc.name)
+}
+
+ * Craft a cURL request that will retrieve a random artist.
+curl -X POST \
+  'http://127.0.0.1:5984/music/_temp_view?limit=1&startkey='`ruby -e 'puts rand'`  \
+  -H "Content-Type: application/json" \
+  -d '{"map":"function(doc){emit(doc.random,doc.name)}"}'
+
+

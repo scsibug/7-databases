@@ -1,0 +1,44 @@
+# Query for all documents in the music database
+curl http://127.0.0.1:5984/music/_all_docs
+# Returns
+{"total_rows":3,"offset":0,"rows":[
+{"id":"3b2af707b0b3264235cd51d5aa000aae","key":"3b2af707b0b3264235cd51d5aa000aae","value":{"rev":"3-d919432240ae1f654f058a0be5fc2efe"}},
+{"id":"belle_and_sebastian","key":"belle_and_sebastian","value":{"rev":"1-3a69590ac34505077380addcd1d60424"}},
+{"id":"radiohead","key":"radiohead","value":{"rev":"1-51408d7ba2e3f98f58a8ea2410ccfcb4"}}
+]}
+
+# Query for all docs, and their content
+curl http://127.0.0.1:5984/music/_all_docs?include_docs=true
+
+# Use a temporary view
+curl -X POST \
+  http://127.0.0.1:5984/music/_temp_view \
+  -H "Content-Type: application/json" \
+  -d '{"map":"function(doc){emit(doc._id,{rev:doc._rev});}"}'
+# Returns
+{"total_rows":3,"offset":0,"rows":[
+{"id":"3b2af707b0b3264235cd51d5aa000aae","key":"3b2af707b0b3264235cd51d5aa000aae","value":{"rev":"3-d919432240ae1f654f058a0be5fc2efe"}},
+{"id":"belle_and_sebastian","key":"belle_and_sebastian","value":{"rev":"1-3a69590ac34505077380addcd1d60424"}},
+{"id":"radiohead","key":"radiohead","value":{"rev":"1-51408d7ba2e3f98f58a8ea2410ccfcb4"}}
+]}
+
+# Another temporary view, outputs document contents as well
+curl -X POST \
+  http://127.0.0.1:5984/music/_temp_view?include_docs=true \
+  -H "Content-Type: application/json" \
+  -d '{"map":"function(doc){emit(doc._id,{rev:doc._rev});}"}'
+
+# Using a stored view
+curl http://127.0.0.1:5984/music/_design/artists/_view/by_name
+curl http://127.0.0.1:5984/music/_design/albums/_view/by_name
+
+# Filter by key
+curl 'http://127.0.0.1:5984/music/_design/albums/_view/by_name?key="Help!"'
+
+# Jamenda dump...
+zcat ~/Downloads/dbdump_artistalbumtrack.xml.gz | ruby import_from_jamendo.rb 
+
+curl http://127.0.0.1:5984/music/_design/artists/_view/by_name?limit=5
+curl 'http://127.0.0.1:5984/music/_design/artists/_view/by_name?limit=5&startkey="C"'
+curl 'http://127.0.0.1:5984/music/_design/artists/_view/by_name?startkey="C"&endkey="D"'
+curl 'http://127.0.0.1:5984/music/_design/artists/_view/by_name?startkey="D"&endkey="C"&descending=true'
