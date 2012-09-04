@@ -1,0 +1,39 @@
+== Find ==
+ * Neo4J Wiki is dead, docs are here: http://docs.neo4j.org/
+ * Gremlin steps: https://github.com/tinkerpop/gremlin/wiki/Gremlin-Steps
+ * Two other shells: cypher & http available from the admin console.
+
+== Do ==
+ * Query all node names with another shell.
+START a=node(*) RETURN a.name as name;
+
+ * Delete all the nodes and edges in your database.
+g.clear()
+
+ * Create a new graph that represents your family.
+greg = g.addVertex([name:'Greg']);
+lindsey = g.addVertex([name:'Lindsey']);
+jason = g.addVertex([name:'Jason']);
+gary =  g.addVertex([name:'Gary']);
+teresa =  g.addVertex([name:'Teresa']);
+g.addEdge(greg,lindsey, 'has_sister');
+g.addEdge(jason,lindsey, 'has_sister');
+g.addEdge(lindsey,greg, 'has_brother');
+g.addEdge(lindsey,jason, 'has_brother');
+g.addEdge(greg,jason, 'has_brother');
+g.addEdge(jason,greg, 'has_brother');
+g.addEdge(greg,gary, 'has_son');
+g.addEdge(jason,gary, 'has_son');
+g.addEdge(greg,teresa, 'has_son');
+g.addEdge(jason,teresa, 'has_son');
+g.addEdge(lindsey,gary, 'has_daughter');
+g.addEdge(lindsey,teresa, 'has_daughter');
+g.addEdge(gary, greg, 'has_father');
+g.addEdge(gary, jason, 'has_father');
+g.addEdge(gary, lindsey, 'has_father');
+g.addEdge(teresa, greg, 'has_mother');
+g.addEdge(teresa, jason, 'has_mother');
+g.addEdge(teresa, lindsey, 'has_mother');
+
+
+

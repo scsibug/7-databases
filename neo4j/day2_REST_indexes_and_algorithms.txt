@@ -1,0 +1,83 @@
+Gremlin.defineStep('costars',
+  [Vertex, Pipe],
+  {
+    _().sideEffect{start = it}.outE('ACTED_IN').
+    inV.inE('ACTED_IN').outV.filter{
+      !start.equals(it)
+    }.dedup
+  }
+)
+
+bacon = g.V.filter{it.name=='Kevin Bacon'}.next()
+elvis = g.V.filter{it.name=='Elvis Presley'}.next()
+
+elvis.costars.loop(1){it.loops < 1}.name
+elvis.costars.loop(1){it.loops < 4}.count()
+# Returns 108922
+
+# Find all chains of costars of length 4 that end with Bacon
+# https://forums.pragprog.com/forums/202/topics/10714
+(elvis.costars.loop(1) {
+  it.loops < 4 & !it.object.equals(bacon)
+}.filter{it.equals(bacon)}.paths).next().name.grep()
+# Returns
+==> Elvis Presley
+==> Love Me Tender
+==> Russ Conway
+==> Trapped
+==> Kevin Bacon
+
+# difference between grep and filter?
+# grep is used to remove null entries
+# Without grep, path returns the vertices and edges leading from elvis to bacon.
+==> Elvis Presley
+==> null
+==> Love Me Tender
+==> null
+==> Russ Conway
+==> null
+==> Trapped
+==> null
+==> Kevin Bacon
+# Using name() returned null for the edges
+# grep() returns only true entries, filtering out the nulls.
+
+rand = new Random()
+bacon.outE.filter{rand.nextDouble() <= 0.33}.inV.name
+
+bacon.outE.inV.inE.outV.loop(4) {
+  it.loops < 3
+}.count()
+
+
+// Both of these use the index, and are fast (~1ms)
+START a=node:actors('name:"Kevin*Bacon"') RETURN a.name;
+START a=node:actors('name:"Kevin*"') WHERE a.name="Kevin Bacon" RETURN a.name;
+
+
+// This does not use the index! Takes 2-4 seconds
+START a=node(*) WHERE a.name="Kevin Bacon" RETURN a.name;
+
+START a=node(*)
+MATCH (a)-[:ACTED_IN]->(b)<-[:ACTED_IN]-(c)-[:ACTED_ID]->(d)-[:ACTED_IN]->(e)
+WHERE a.name="Kevin Bacon"
+RETURN r as rel, a.name as actor, b.name as movie, c.name as costar;
+
+
+
+@prefix :       <http://example/> .
+:person_a :acted_in :movie1.
+:person_b :acted_in :movie1, :movie2.
+:person_c :acted_in :movie2, :movie3.
+:person_d :acted_in :movie3, :movie4.
+:person_e :acted_in :movie4, :movie5.
+:person_f :acted_in :movie5, :movie6.
+:person_g :acted_in :movie6, :movie7.
+:person_h :acted_in :movie7, :movie8.
+
+PREFIX :   <http://example/>
+SELECT distinct ?connected_to
+{ 
+  ?actor (:acted_in/^:acted_in){0,6} ?connected_to.
+  FILTER (?actor = :person_a && ?connected_to != ?actor)
+}

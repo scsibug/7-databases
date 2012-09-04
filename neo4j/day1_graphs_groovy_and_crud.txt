@@ -1,0 +1,177 @@
+# Show all vertices
+g.V
+
+# Show all edges
+g.E
+
+# A specific vertex
+g.v(0)
+
+# Show all properties for a vertex
+g.v(0).map()
+
+# Find a vertex by a property value
+g.V.filter{it.name=='riesling'}
+# Returns v[2]
+
+# Outgoing edges for a vertex
+g.V.filter{it.name=='Wine Expert Monthly'}.outE()
+# Returns e[0][1-reported_on->0]
+
+# Show name instead of the vertex
+g.V.filter{it.name=='Wine Expert Monthly'}.outE.inV.name
+# Returns "Prancing Wolf Ice Wine 2007"
+
+# Shortcut for "outE.inV" (the node at the out end of an edge)
+g.V.filter{it.name=='Wine Expert Monthly'}.out.name
+
+# Add a vertex
+pwolf = g.addVertex([name: 'Prancing Wolf Winery'])
+
+# Add an edge between winery and wine
+g.addEdge(pwolf, g.v(0), 'produced')
+
+# Add some more wines.
+kabinett = g.addVertex([name: 'Prancing Wolf Kabinett 2002'])
+g.addEdge(pwolf, kabinett, 'produced')
+spatlese = g.addVertex([name: 'Prancing Wolf Spatlese 2007'])
+g.addEdge(pwolf, spatlese, 'produced')
+
+# Set wine type
+riesling = g.V.filter{it.name=='riesling'}.next()
+g.addEdge([style:'kabinett'], kabinett, riesling, 'grape_type') 
+g.addEdge([style:'spatlese'], spatlese, riesling, 'grape_type') 
+
+# Find the other wines with the same grape type as ice wine.
+ice_wine.out('grape_type').in('grape_type').filter{!it.equals(ice_wine)}
+
+# Add social data
+alice = g.addVertex([name:'Alice'])
+ice_wine = g.V.filter{it.name=='Prancing Wolf Ice Wine 2007'}.next()
+g.addEdge(alice, ice_wine, 'likes')
+
+tom = g.addVertex([name:'Tom']);
+kabineet = g.V.filter{it.name=='Prancing Wolf Kabinett 2002'}.next();
+g.addEdge(tom, kabinett, 'likes');
+g.addEdge(tom, ice_wine, 'likes');
+g.addEdge(tom, g.V.filter{it.name=='Wine Expert Monthly'}.next(), 'trusts');
+
+patty = g.addVertex([name:'Patty']);
+g.addEdge(patty, tom, 'friends');
+g.addEdge(patty, alice, 'friends');
+
+# Follow edges in either direction
+alice.bothE('friends').bothV.name
+# Returns Patty and Alice
+
+# Filter out Alice
+alice.bothE('friends').bothV.except([alice]).name
+# Returns Patty
+
+# Same intent, but using a filter
+alice.bothE('friends').bothV.filter{!it.equals(alice)}.name
+# Chaining relationships
+alice.bothE('friends').bothV.except([alice]).bothE('friends').bothV.except([alice]).name
+
+# looping (note that loop param is not number of times to loop!)
+alice.bothE('friends').bothV.except([alice]).loop(3) {
+  it.loops <= 2
+}.name
+# Returns Tom, Patty, Patty
+
+# Illustrating that loop is equivalent to an 'unrolled' pipeline:
+alice.bothE('friends').bothV.except([alice]).loop(3) {it.loops <= 2}.name ==
+  alice.bothE('friends').bothV.except([alice]).bothE('friends').bothV.except([alice]).name
+
+# Unique results:
+alice.bothE('friends').bothV.except([alice]).loop(3) {
+  it.loops <= 2
+}.dedup.name.paths
+
+# Show traversal path
+alice.bothE('friends').bothV.except([alice]).loop(3) {
+  it.loops <= 2
+}.dedup.name.paths
+
+# Results:
+==> [v[6], e[12][8-friends->6], v[8], e[11][8-friends->7], v[7], Tom]
+==> [v[6], e[12][8-friends->6], v[8], e[11][8-friends->7], v[8], Patty]
+
+# Moving backwards
+alice.outE.inV.back(2).name
+# Why would we actually want to do this?  To test a condition, and return information about an earlier node.
+# Example, What are the names of people who like ice wine?
+g.V.outE('likes').inV.filter{it.name == "Prancing Wolf Ice Wine 2007"}.back(3).name
+# A more readable version would be:
+g.V.as('person').outE('likes').inV.filter{it.name == "Prancing Wolf Ice Wine 2007"}.back('person').name
+
+# grouping duplicate values
+name_map = [:]
+g.V.name.groupCount(name_map)
+name_map
+
+# Count how many people like each type of wine
+g.V.outE('likes').outV.name.groupCount(wines_count)
+# Returns
+==> Alice=1
+==> Tom=2
+
+# using mapreduce to count how many wines lack a rating
+# map:
+rated_list = g.V.in('grape_type').collect{
+  !it.inE('reported_on').toList().isEmpty()
+}
+# reduce:
+rated_list.inject(0){ count, is_rated ->
+  if (is_rated) {
+    count
+  } else {
+    count + 1
+  }
+}
+# Returns: 2
+
+# Find all pairs of friends
+g.V.outE('friends').transform{[it.outV.name.next(), it.inV.name.next()]}
+# Returns:
+==> [Patty, Tom]
+==> [Patty, Alice]
+
+# What wines do people like?
+# If someone doesn't have any friends, they're not a person? Ouch!
+g.V.both('friends').dedup.transform{
+  [it.name, it.out('likes').name.toList() ]
+}
+# Returns:
+==> [Patty, []]
+==> [Tom, [Prancing Wolf Kabinett 2002, Prancing Wolf Ice Wine 2007]]
+==> [Alice, [Prancing Wolf Ice Wine 2007]]
+
+# Creating our own pipeline steps
+Gremlin.defineStep('varietal',
+  [Vertex, Pipe],
+  {_().out('grape_type').dedup}
+)
+
+# To run:
+g.V.varietal.name
+# Or, 
+g.V.filter{it.name=='Prancing Wolf Ice Wine 2007'}.varietal.name
+
+# Get all wines that your friends like
+Gremlin.defineStep('friendsuggest',
+  [Vertex, Pipe],
+  {
+    _().sideEffect{start = it}.both('friends').except([start]).out('likes').dedup
+  }
+)
+g.V.filter{it.name == 'Patty'}.friendsuggest.varietal.namen
+
+# Updating data
+e=g.V.filter{it.name==='Alice'}.outE('likes').next()
+e.weight=95
+e.save
+
+# Removing the just-added property
+e.removeProperty('weight')
+e.save

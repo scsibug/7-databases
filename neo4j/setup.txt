@@ -1,0 +1,5 @@
+Get neo4j distribution here: http://neo4j.org/download/
+tar -xzvf neo4j-community-1.8.M07-unix.tar.gz
+./bin/neo4j start
+
+http://localhost:7474/webadmin/
